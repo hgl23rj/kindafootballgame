@@ -99,14 +99,14 @@ let score = 0;
 let level = 1;
 let arrowsLeft = 5;
 let levelScore = 0;
-let requiredScore = 100;
+let requiredScore = 80;
 let gameState = 'playing'; // 'playing', 'levelclear', 'gameover', 'victory'
 let wind = 0;
 let highScore = localStorage.getItem('jamaica_archery_highscore') || 0;
 
-const bowPos = { x: 130, y: 390 };
+const bowPos = { x: 130, y: 380 };
 let isAiming = false;
-let dragEnd = { x: 130, y: 390 };
+let dragEnd = { x: 130, y: 380 };
 let activeArrow = null;
 
 let targets = [];
@@ -258,6 +258,7 @@ function setupLevel() {
     obstacles = [];
     arrowsLeft = 5;
     levelScore = 0;
+    activeArrow = null;
 
     if (level === 1) { requiredScore = 80; wind = 0; targets.push(new Target(850, 230, 38, 1.5, 1)); }
     else if (level === 2) { requiredScore = 100; wind = 0.15; targets.push(new Target(820, 150, 32, 2, 1)); targets.push(new Target(900, 310, 32, 2, -1)); }
@@ -324,7 +325,6 @@ canvas.addEventListener('mousedown', (e) => {
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
         
-        // Button bounds: X: [canvas.width/2 - 90, canvas.width/2 + 90], Y: [canvas.height/2 + 40, canvas.height/2 + 82]
         if (mouseX > canvas.width / 2 - 90 && mouseX < canvas.width / 2 + 90 &&
             mouseY > canvas.height / 2 + 40 && mouseY < canvas.height / 2 + 82) {
             level++;
@@ -483,23 +483,28 @@ function draw() {
     ctx.lineTo(0, canvas.height);
     ctx.fill();
 
-    ctx.fillStyle = '#1e8449';
-    ctx.fillRect(bowPos.x - 30, bowPos.y - 45, 26, 45);
+    // Redesigned Archer proportions properly scaled relative to the bow
+    // Torso (Green/Gold/Red rasta shirt bands)
+    ctx.fillStyle = '#27ae60';
+    ctx.fillRect(bowPos.x - 38, bowPos.y - 65, 34, 65);
     ctx.fillStyle = '#f1c40f';
-    ctx.fillRect(bowPos.x - 25, bowPos.y - 45, 16, 6);
+    ctx.fillRect(bowPos.x - 38, bowPos.y - 40, 34, 15);
 
+    // Head with dreads/tam hat
     ctx.fillStyle = '#b9770e';
     ctx.beginPath();
-    ctx.arc(bowPos.x - 17, bowPos.y - 58, 11, 0, Math.PI * 2);
+    ctx.arc(bowPos.x - 21, bowPos.y - 84, 15, 0, Math.PI * 2);
     ctx.fill();
+    // Tam hat / Rastafarian cap
     ctx.fillStyle = '#2c3e50';
-    ctx.fillRect(bowPos.x - 26, bowPos.y - 72, 20, 8);
+    ctx.fillRect(bowPos.x - 33, bowPos.y - 102, 26, 12);
     ctx.fillStyle = '#c0392b';
-    ctx.fillRect(bowPos.x - 22, bowPos.y - 76, 12, 6);
+    ctx.fillRect(bowPos.x - 29, bowPos.y - 108, 18, 8);
 
-    ctx.fillStyle = '#5d4037';
-    ctx.fillRect(bowPos.x - 27, bowPos.y, 10, 15);
-    ctx.fillRect(bowPos.x - 15, bowPos.y, 10, 15);
+    // Legs
+    ctx.fillStyle = '#34495e';
+    ctx.fillRect(bowPos.x - 37, bowPos.y, 13, 20);
+    ctx.fillRect(bowPos.x - 18, bowPos.y, 13, 20);
 
     obstacles.forEach(o => o.draw());
     targets.forEach(t => t.draw());
@@ -517,6 +522,7 @@ function draw() {
         ctx.setLineDash([]);
     }
 
+    // Bow
     ctx.strokeStyle = '#8E44AD';
     ctx.lineWidth = 6;
     ctx.beginPath();
