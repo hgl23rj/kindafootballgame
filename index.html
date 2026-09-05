@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/jpeg" href="yeladim.jpg">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arcade Bow and Arrow - Jamaican Archer Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Free Flick Football — Online Ready</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #111;
-            color: #fff;
+        body { 
+            background: #1a1a1a; 
+            color: #fff; 
             font-family: system-ui, -apple-system, sans-serif;
             display: flex;
             flex-direction: column;
@@ -19,111 +20,120 @@
             user-select: none;
         }
         #game-container {
-            background: #1a1a1a;
-            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #222;
+            padding: 12px;
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            border: 2px solid #333;
-            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            border: 2px solid #444;
         }
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            width: 1000px;
-            margin-bottom: 10px;
+            width: 100%;
+            max-width: 864px;
+            margin-bottom: 8px;
             padding: 0 10px;
-            font-size: 13px;
-            font-weight: bold;
         }
-        .hud-item {
-            background: #111;
-            padding: 6px 12px;
-            border-radius: 6px;
+        .team-info {
+            font-weight: bold;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        .scoreboard {
+            font-size: 26px;
             font-family: monospace;
-            font-size: 14px;
+            background: #111;
+            padding: 4px 16px;
+            border-radius: 6px;
+            color: #ffa519;
+            letter-spacing: 2px;
             border: 1px solid #333;
         }
         canvas {
-            background: linear-gradient(to bottom, #2980b9, #6dd5fa, #ffffff);
+            background: #2e8b57; 
             border-radius: 6px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+            cursor: crosshair;
             display: block;
             border: 2px solid #555;
-            cursor: crosshair;
         }
         .footer-controls {
-            margin-top: 10px;
+            margin-top: 8px;
             display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
             justify-content: center;
-            gap: 10px;
         }
         button {
-            padding: 8px 16px;
-            background: #27ae60;
-            color: white;
-            border: none;
+            padding: 6px 14px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
             border-radius: 6px;
-            font-weight: bold;
+            font-weight: 600;
             cursor: pointer;
             transition: background 0.2s;
         }
-        button:hover { background: #219653; }
+        button:hover { background: #444; }
+        .login-btn { background: #4285F4; border-color: #2b67cb; }
+        .login-btn:hover { background: #3367d6; }
         .instructions {
             font-size: 11px;
             color: #aaa;
-            margin-top: 8px;
+            margin-top: 6px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <div class="header">
-            <div style="color: #f1c40f;">🇯🇲 THE IRIE ARCHER</div>
-            <div class="hud-item" id="level-display" style="color: #f1c40f;">Level: 1 / 10</div>
-            <div class="hud-item" id="wind-display" style="color: #2980b9;">Wind: ➖ Calm</div>
-            <div class="hud-item" id="highscore-display" style="color: #e67e22;">Best: 0</div>
-            <div class="hud-item" id="score-display" style="color: #2ecc71;">Score: 0 | Arrows: 5</div>
-        </div>
-        <canvas id="gameCanvas" width="1000" height="500"></canvas>
-        <div class="footer-controls">
-            <button onclick="resetCampaign()">Restart Campaign</button>
-        </div>
-        <div class="instructions">Pull back the classic bow from the archer, adjust for the wind, and hit the bullseye across all 10 levels!</div>
+
+<div id="game-container">
+    <div class="header">
+        <div class="team-info" id="p1-label" style="color: #f1c40f;">💛 Yellow Team</div>
+        <div class="scoreboard" id="scoreboard">0 - 0</div>
+        <div class="team-info" id="p2-label" style="color: #e67e22;">🧡 Orange Team</div>
     </div>
 
+    <canvas id="field" width="864" height="444"></canvas>
+
+    <div class="footer-controls">
+        <button onclick="resetGame()">New Match</button>
+        <button onclick="toggleAIMode()" id="ai-mode-btn">Mode: vs AI (Off)</button>
+        <button onclick="initAudio()" id="audio-btn">🔊 Enable Audio</button>
+        <button class="login-btn" onclick="mockLogin()" id="login-btn">👤 Sign In</button>
+    </div>
+    <div class="instructions" id="instruction-text">Click & drag the ball to enter **Slow-Mo** aim mode, release to kick!</div>
+</div>
+
 <script>
-const canvas = document.getElementById('gameCanvas');
+const canvas = document.getElementById('field');
 const ctx = canvas.getContext('2d');
 
-let score = 0;
-let level = 1;
-let arrowsLeft = 5;
-let levelScore = 0;
-let requiredScore = 80;
-let gameState = 'playing'; // 'playing', 'levelclear', 'gameover', 'victory'
-let wind = 0;
-let highScore = localStorage.getItem('jamaica_archery_highscore') || 0;
+let scoreYellow = 0;
+let scoreOrange = 0;
+let isAIEnabled = false;
+let currentTurn = 'yellow';
 
-// Archer positioned properly so feet rest on the ground line
-const bowPos = { x: 130, y: 445 };
-let isAiming = false;
-let dragEnd = { x: 130, y: 445 };
-let activeArrow = null;
+let isDragging = false;
+let dragStart = { x: 0, y: 0 };
+let dragCurrent = { x: 0, y: 0 };
 
-let targets = [];
-let obstacles = [];
-let clouds = [];
+const FIELD_WIDTH = 864;
+const FIELD_HEIGHT = 444;
+const GOAL_WIDTH = 110;
 
-for (let i = 0; i < 5; i++) {
-    clouds.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * 180 + 30,
-        speed: Math.random() * 0.4 + 0.2,
-        radius: Math.random() * 30 + 25
-    });
-}
+let ball = { x: FIELD_WIDTH / 2, y: FIELD_HEIGHT / 2, vx: 0, vy: 0, radius: 10, mass: 1 };
+let yellowTeam = [];
+let orangeTeam = [];
 
 let audioCtx = null;
+let musicInterval = null;
+let audioEnabled = false;
+
 function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -131,498 +141,338 @@ function initAudio() {
     if (audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
+    audioEnabled = true;
+    document.getElementById('audio-btn').innerText = '🎵 Audio Active';
+    startThemeMusic();
 }
 
-function playSound(type) {
-    initAudio();
-    if (!audioCtx) return;
-
+function playKickSound() {
+    if (!audioEnabled || !audioCtx) return;
     let osc = audioCtx.createOscillator();
     let gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.15);
+    
+    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    let now = audioCtx.currentTime;
-
-    if (type === 'release') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(320, now);
-        osc.frequency.exponentialRampToValueAtTime(70, now + 0.18);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
-        osc.start(now);
-        osc.stop(now + 0.18);
-    } else if (type === 'hit') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.setValueAtTime(783.99, now + 0.08);
-        gain.gain.setValueAtTime(0.4, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
-        osc.start(now);
-        osc.stop(now + 0.25);
-    } else if (type === 'boss_hit') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(140, now);
-        osc.frequency.linearRampToValueAtTime(70, now + 0.2);
-        gain.gain.setValueAtTime(0.5, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
-        osc.start(now);
-        osc.stop(now + 0.2);
-    } else if (type === 'win') {
-        const notes = [523.25, 659.25, 783.99, 1046.50];
-        notes.forEach((freq, idx) => {
-            let o = audioCtx.createOscillator();
-            let g = audioCtx.createGain();
-            o.connect(g);
-            g.connect(audioCtx.destination);
-            o.type = 'triangle';
-            o.frequency.setValueAtTime(freq, now + idx * 0.12);
-            g.gain.setValueAtTime(0.3, now + idx * 0.12);
-            g.gain.linearRampToValueAtTime(0.01, now + idx * 0.12 + 0.2);
-            o.start(now + idx * 0.12);
-            o.stop(now + idx * 0.12 + 0.2);
-        });
-    } else if (type === 'fail') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(180, now);
-        osc.frequency.linearRampToValueAtTime(70, now + 0.4);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
-        osc.start(now);
-        osc.stop(now + 0.4);
-    }
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.15);
 }
 
-class Target {
-    constructor(x, y, radius, speed, dir) {
-        this.x = x;
-        this.y = y;
-        this.radius = radius;
-        this.speed = speed;
-        this.direction = dir;
-        this.isBoss = false;
-        this.bossHP = 0;
-    }
-    update() {
-        this.y += this.speed * this.direction;
-        if (this.y - this.radius < 50 || this.y + this.radius > 410) {
-            this.direction *= -1;
-        }
-    }
-    draw() {
-        const rings = this.isBoss ? ['#111', '#27ae60', '#f1c40f', '#e74c3c', '#f1c40f'] : ['#e74c3c', '#f1c40f', '#27ae60', '#111', '#f1c40f'];
-        const rStep = this.radius / rings.length;
-        for (let i = 0; i < rings.length; i++) {
-            ctx.fillStyle = rings[i];
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius - (i * rStep), 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-        if (this.isBoss) {
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 13px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText(`COMMANDER HP: ${this.bossHP}`, this.x, this.y - this.radius - 10);
-            ctx.textAlign = 'left';
-        }
-    }
-}
-
-class Obstacle {
-    constructor(x, y, w, h, speed, dir) {
-        this.x = x;
-        this.y = y;
-        this.width = w;
-        this.height = h;
-        this.speed = speed;
-        this.direction = dir;
-    }
-    update() {
-        this.y += this.speed * this.direction;
-        if (this.y < 60 || this.y + this.height > 400) {
-            this.direction *= -1;
-        }
-    }
-    draw() {
-        ctx.fillStyle = '#d35400';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        ctx.strokeStyle = '#8e44ad';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(this.x, this.y, this.width, this.height);
-    }
-}
-
-function setupLevel() {
-    targets = [];
-    obstacles = [];
-    arrowsLeft = 5;
-    levelScore = 0;
-    activeArrow = null;
-
-    if (level === 1) { requiredScore = 80; wind = 0; targets.push(new Target(850, 230, 38, 1.5, 1)); }
-    else if (level === 2) { requiredScore = 100; wind = 0.15; targets.push(new Target(820, 150, 32, 2, 1)); targets.push(new Target(900, 310, 32, 2, -1)); }
-    else if (level === 3) { requiredScore = 120; wind = -0.25; targets.push(new Target(850, 230, 28, 2.5, 1)); obstacles.push(new Obstacle(550, 150, 20, 130, 1.5, 1)); }
-    else if (level === 4) { requiredScore = 150; wind = 0.3; targets.push(new Target(800, 120, 30, 2.5, 1)); targets.push(new Target(920, 340, 30, 2.5, -1)); obstacles.push(new Obstacle(600, 100, 20, 200, 2, -1)); }
-    else if (level === 5) { requiredScore = 140; wind = -0.4; targets.push(new Target(850, 230, 24, 3.5, 1)); obstacles.push(new Obstacle(500, 80, 15, 110, 2.5, 1)); obstacles.push(new Obstacle(700, 260, 15, 110, 2.5, -1)); }
-    else if (level === 6) { requiredScore = 180; wind = 0.2; targets.push(new Target(810, 150, 26, 3, 1)); targets.push(new Target(890, 310, 26, 3, -1)); targets.push(new Target(850, 230, 22, 4, 1)); }
-    else if (level === 7) { requiredScore = 200; wind = -0.35; targets.push(new Target(850, 230, 26, 3.5, 1)); obstacles.push(new Obstacle(580, 50, 20, 150, 3, 1)); obstacles.push(new Obstacle(580, 250, 20, 150, 3, -1)); }
-    else if (level === 8) { requiredScore = 220; wind = 0.45; targets.push(new Target(820, 130, 22, 4, 1)); targets.push(new Target(910, 330, 22, 4, -1)); obstacles.push(new Obstacle(630, 110, 15, 180, 3.5, 1)); }
-    else if (level === 9) { requiredScore = 250; wind = -0.3; targets.push(new Target(790, 100, 24, 3.5, 1)); targets.push(new Target(860, 230, 24, 3.5, -1)); targets.push(new Target(930, 360, 24, 3.5, 1)); obstacles.push(new Obstacle(520, 90, 15, 130, 3, 1)); obstacles.push(new Obstacle(700, 200, 15, 130, 3, -1)); }
-    else if (level === 10) {
-        requiredScore = 300;
-        wind = 0.5;
-        let boss = new Target(870, 230, 48, 2.5, 1);
-        boss.isBoss = true;
-        boss.bossHP = 6;
-        targets.push(boss);
-        obstacles.push(new Obstacle(570, 70, 22, 280, 3, 1));
-    }
-
-    updateUI();
-}
-
-function resetCampaign() {
-    score = 0;
-    level = 1;
-    gameState = 'playing';
-    setupLevel();
-}
-
-function updateHighScore() {
-    if (score > highScore) {
-        highScore = score;
-        localStorage.setItem('jamaica_archery_highscore', highScore);
-    }
-}
-
-function updateUI() {
-    updateHighScore();
-    document.getElementById('level-display').innerText = `Level: ${level} / 10`;
-    document.getElementById('highscore-display').innerText = `Best: ${highScore}`;
-    document.getElementById('score-display').innerText = `Score: ${score} | Target: ${requiredScore} | Arrows: ${arrowsLeft}`;
+// Enhanced Arcade Theme Song (Upbeat Synth Arpeggio Loop)
+function startThemeMusic() {
+    if (musicInterval) return;
+    // Catchy sports-arcade progression sequence
+    const melody = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63, 440.00, 493.88];
+    let index = 0;
     
-    const windDisplay = document.getElementById('wind-display');
-    if (Math.abs(wind) < 0.08) {
-        windDisplay.innerText = "Wind: ➖ Calm";
-        windDisplay.style.color = "#2ecc71";
-    } else if (wind > 0) {
-        windDisplay.innerText = `Wind: ➡️ Right (${(Math.abs(wind)*4).toFixed(1)})`;
-        windDisplay.style.color = "#2980b9";
-    } else {
-        windDisplay.innerText = `Wind: ⬅️ Left (${(Math.abs(wind)*4).toFixed(1)})`;
-        windDisplay.style.color = "#e74c3c";
-    }
-}
-
-// Mouse Controls
-canvas.addEventListener('mousedown', (e) => {
-    initAudio();
-    
-    if (gameState === 'levelclear') {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+    musicInterval = setInterval(() => {
+        if (!audioEnabled || !audioCtx) return;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
         
-        if (mouseX > canvas.width / 2 - 90 && mouseX < canvas.width / 2 + 90 &&
-            mouseY > canvas.height / 2 + 40 && mouseY < canvas.height / 2 + 82) {
-            level++;
-            gameState = 'playing';
-            setupLevel();
-        }
-        return;
-    }
+        osc.type = 'square'; // Classic retro synth wave
+        osc.frequency.setValueAtTime(melody[index % melody.length], audioCtx.currentTime);
+        
+        gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.18);
 
-    if (gameState !== 'playing' || activeArrow !== null) return;
-    if (arrowsLeft <= 0) return;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.18);
+        index++;
+    }, 220); // Faster tempo for excitement
+}
+
+function mockLogin() {
+    let playerName = prompt("Enter your online username:", "Player1");
+    if (playerName) {
+        document.getElementById('p1-label').innerText = `👤 ${playerName}`;
+        document.getElementById('login-btn').innerText = `✅ Connected`;
+    }
+}
+
+function initFormations() {
+    yellowTeam = [
+        { x: 50,  y: FIELD_HEIGHT / 2, radius: 13, mass: 500 }, 
+        { x: 120, y: 130, radius: 13, mass: 500 }, 
+        { x: 120, y: 200, radius: 13, mass: 500 },
+        { x: 120, y: 244, radius: 13, mass: 500 },
+        { x: 120, y: 314, radius: 13, mass: 500 },
+        { x: 220, y: 150, radius: 13, mass: 500 }, 
+        { x: 220, y: 222, radius: 13, mass: 500 },
+        { x: 220, y: 294, radius: 13, mass: 500 },
+        { x: 340, y: 180, radius: 13, mass: 500 }, 
+        { x: 340, y: 222, radius: 13, mass: 500 },
+        { x: 340, y: 264, radius: 13, mass: 500 }
+    ];
+
+    orangeTeam = [
+        { x: FIELD_WIDTH - 50,  y: FIELD_HEIGHT / 2, radius: 13, mass: 500 }, 
+        { x: FIELD_WIDTH - 120, y: 130, radius: 13, mass: 500 }, 
+        { x: FIELD_WIDTH - 120, y: 200, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 120, y: 244, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 120, y: 314, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 220, y: 150, radius: 13, mass: 500 }, 
+        { x: FIELD_WIDTH - 220, y: 222, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 220, y: 294, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 340, y: 180, radius: 13, mass: 500 }, 
+        { x: FIELD_WIDTH - 340, y: 222, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 340, y: 264, radius: 13, mass: 500 }
+    ];
+
+    ball.x = FIELD_WIDTH / 2;
+    ball.y = FIELD_HEIGHT / 2;
+    ball.vx = 0;
+    ball.vy = 0;
+    currentTurn = 'yellow';
+}
+
+function resetGame() {
+    scoreYellow = 0;
+    scoreOrange = 0;
+    updateScoreboard();
+    initFormations();
+}
+
+function updateScoreboard() {
+    document.getElementById('scoreboard').innerText = `${scoreYellow} - ${scoreOrange}`;
+}
+
+function toggleAIMode() {
+    isAIEnabled = !isAIEnabled;
+    document.getElementById('ai-mode-btn').innerText = `Mode: vs AI (${isAIEnabled ? 'On' : 'Off'})`;
+    document.getElementById('p2-label').innerText = isAIEnabled ? '🤖 AI Bot' : '🧡 Orange Team';
+    resetGame();
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if (isAIEnabled && currentTurn === 'orange') return;
 
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    if (Math.hypot(mouseX - bowPos.x, mouseY - bowPos.y) < 70) {
-        isAiming = true;
-        dragEnd = { x: mouseX, y: mouseY };
+    if (Math.hypot(mouseX - ball.x, mouseY - ball.y) < ball.radius * 2.5) {
+        isDragging = true;
+        dragStart = { x: ball.x, y: ball.y };
+        dragCurrent = { x: mouseX, y: mouseY };
     }
 });
 
 canvas.addEventListener('mousemove', (e) => {
-    if (!isAiming) return;
+    if (!isDragging) return;
     const rect = canvas.getBoundingClientRect();
-    dragEnd.x = e.clientX - rect.left;
-    dragEnd.y = e.clientY - rect.top;
+    dragCurrent.x = e.clientX - rect.left;
+    dragCurrent.y = e.clientY - rect.top;
 });
 
 canvas.addEventListener('mouseup', () => {
-    if (!isAiming) return;
-    isAiming = false;
+    if (!isDragging) return;
+    isDragging = false;
 
-    const dx = bowPos.x - dragEnd.x;
-    const dy = bowPos.y - dragEnd.y;
-    const power = Math.min(Math.hypot(dx, dy) * 0.15, 24);
+    const powerMultiplier = 0.22;
+    ball.vx = (dragStart.x - dragCurrent.x) * powerMultiplier;
+    ball.vy = (dragStart.y - dragCurrent.y) * powerMultiplier;
+    
+    playKickSound();
 
-    if (power > 2) {
-        const angle = Math.atan2(dy, dx);
-        activeArrow = {
-            x: bowPos.x,
-            y: bowPos.y,
-            vx: Math.cos(angle) * power,
-            vy: Math.sin(angle) * power,
-            angle: angle,
-            active: true
-        };
-        arrowsLeft--;
-        playSound('release');
-        updateUI();
+    if (isAIEnabled) {
+        currentTurn = 'orange';
     }
 });
 
-function update() {
-    clouds.forEach(c => {
-        c.x -= c.speed;
-        if (c.x < -60) c.x = canvas.width + 60;
+function updatePhysics() {
+    let slowFactor = isDragging ? 0.2 : 1.0;
+    const friction = Math.pow(0.985, slowFactor);
+
+    ball.x += ball.vx * slowFactor;
+    ball.y += ball.vy * slowFactor;
+    ball.vx *= friction;
+    ball.vy *= friction;
+
+    if (Math.abs(ball.vx) < 0.04) ball.vx = 0;
+    if (Math.abs(ball.vy) < 0.04) ball.vy = 0;
+
+    const wallMargin = 20;
+    const goalTop = (FIELD_HEIGHT - GOAL_WIDTH) / 2;
+    const goalBottom = goalTop + GOAL_WIDTH;
+
+    if (ball.y - ball.radius < wallMargin) {
+        ball.y = wallMargin + ball.radius;
+        ball.vy *= -0.8;
+    }
+    if (ball.y + ball.radius > FIELD_HEIGHT - wallMargin) {
+        ball.y = FIELD_HEIGHT - wallMargin - ball.radius;
+        ball.vy *= -0.8;
+    }
+
+    if (ball.x - ball.radius < 0) {
+        if (ball.y > goalTop && ball.y < goalBottom) {
+            scoreOrange++;
+            updateScoreboard();
+            initFormations();
+            return;
+        }
+        ball.x = ball.radius;
+        ball.vx *= -0.8;
+    }
+    if (ball.x + ball.radius > FIELD_WIDTH) {
+        if (ball.y > goalTop && ball.y < goalBottom) {
+            scoreYellow++;
+            updateScoreboard();
+            initFormations();
+            return;
+        }
+        ball.x = FIELD_WIDTH - ball.radius;
+        ball.vx *= -0.8;
+    }
+
+    const allPlayers = [...yellowTeam, ...orangeTeam];
+    allPlayers.forEach(p => {
+        const dx = ball.x - p.x;
+        const dy = ball.y - p.y;
+        const dist = Math.hypot(dx, dy);
+        const minDist = ball.radius + p.radius;
+
+        if (dist < minDist) {
+            const angle = Math.atan2(dy, dx);
+            const overlap = minDist - dist;
+            ball.x += overlap * Math.cos(angle);
+            ball.y += overlap * Math.sin(angle);
+
+            const normalX = Math.cos(angle);
+            const normalY = Math.sin(angle);
+            const dotProduct = ball.vx * normalX + ball.vy * normalY;
+            
+            ball.vx = (ball.vx - 2 * dotProduct * normalX) * 0.8;
+            ball.vy = (ball.vy - 2 * dotProduct * normalY) * 0.8;
+        }
     });
 
-    if (gameState !== 'playing') return;
+    // Single Straight Shot AI Logic
+    if (isAIEnabled && currentTurn === 'orange' && ball.vx === 0 && ball.vy === 0) {
+        setTimeout(() => {
+            const targetX = 0;
+            const targetY = FIELD_HEIGHT / 2;
+            const angle = Math.atan2(targetY - ball.y, targetX - ball.x);
+            const power = 14;
 
-    targets.forEach(t => t.update());
-    obstacles.forEach(o => o.update());
-
-    if (activeArrow && activeArrow.active) {
-        activeArrow.vx += wind * 0.04;
-        activeArrow.x += activeArrow.vx;
-        activeArrow.y += activeArrow.vy;
-        activeArrow.vy += 0.15;
-        activeArrow.angle = Math.atan2(activeArrow.vy, activeArrow.vx);
-
-        obstacles.forEach(o => {
-            if (activeArrow && activeArrow.x > o.x && activeArrow.x < o.x + o.width &&
-                activeArrow.y > o.y && activeArrow.y < o.y + o.height) {
-                activeArrow = null;
-                checkTurnEnd();
-            }
-        });
-
-        if (activeArrow && (activeArrow.x > canvas.width || activeArrow.x < 0 || activeArrow.y > canvas.height || activeArrow.y < 0)) {
-            activeArrow = null;
-            checkTurnEnd();
-        } else if (activeArrow) {
-            targets.forEach(t => {
-                const dist = Math.hypot(activeArrow.x - t.x, activeArrow.y - t.y);
-                if (dist < t.radius) {
-                    if (t.isBoss) {
-                        t.bossHP--;
-                        score += 50;
-                        levelScore += 50;
-                        activeArrow = null;
-                        playSound('boss_hit');
-                        if (t.bossHP <= 0) {
-                            score += 150;
-                            levelScore += 150;
-                            playSound('win');
-                            if (levelScore >= requiredScore) {
-                                gameState = 'victory';
-                            } else {
-                                gameState = 'levelclear';
-                            }
-                        }
-                    } else {
-                        let hitScore = 20;
-                        if (dist < 8) hitScore = 60;
-                        else if (dist < 18) hitScore = 40;
-
-                        score += hitScore;
-                        levelScore += hitScore;
-                        activeArrow = null;
-                        playSound('hit');
-                    }
-                    updateUI();
-                    if (gameState === 'playing') checkTurnEnd();
-                }
-            });
-        }
-    }
-}
-
-function checkTurnEnd() {
-    if (levelScore >= requiredScore) {
-        if (level === 10) {
-            gameState = 'victory';
-            playSound('win');
-        } else {
-            gameState = 'levelclear';
-            playSound('win');
-        }
-    } else if (arrowsLeft === 0 && !activeArrow) {
-        gameState = 'gameover';
-        playSound('fail');
+            ball.vx = Math.cos(angle) * power;
+            ball.vy = Math.sin(angle) * power;
+            playKickSound();
+            currentTurn = 'yellow';
+        }, 500);
     }
 }
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
 
-    clouds.forEach(c => {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fillStyle = isDragging ? '#257347' : '#2e8b57';
+    ctx.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+    for (let x = 0; x < FIELD_WIDTH; x += 80) {
+        ctx.fillRect(x, 0, 40, FIELD_HEIGHT);
+    }
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(FIELD_WIDTH / 2, 20);
+    ctx.lineTo(FIELD_WIDTH / 2, FIELD_HEIGHT - 20);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(FIELD_WIDTH / 2, FIELD_HEIGHT / 2, 65, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const goalTop = (FIELD_HEIGHT - GOAL_WIDTH) / 2;
+    ctx.fillStyle = 'rgba(20, 30, 20, 0.4)';
+    ctx.fillRect(0, goalTop, 20, GOAL_WIDTH);
+    ctx.fillRect(FIELD_WIDTH - 20, goalTop, 20, GOAL_WIDTH);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    for (let y = goalTop; y < goalTop + GOAL_WIDTH; y += 10) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(20, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(FIELD_WIDTH - 20, y); ctx.lineTo(FIELD_WIDTH, y); ctx.stroke();
+    }
+    for (let x = 0; x <= 20; x += 10) {
+        ctx.beginPath(); ctx.moveTo(x, goalTop); ctx.lineTo(x, goalTop + GOAL_WIDTH); ctx.stroke();
+    }
+    for (let x = FIELD_WIDTH - 20; x <= FIELD_WIDTH; x += 10) {
+        ctx.beginPath(); ctx.moveTo(x, goalTop); ctx.lineTo(x, goalTop + GOAL_WIDTH); ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(0, goalTop, 20, GOAL_WIDTH);
+    ctx.strokeRect(FIELD_WIDTH - 20, goalTop, 20, GOAL_WIDTH);
+
+    yellowTeam.forEach(p => {
+        ctx.fillStyle = '#f1c40f';
         ctx.beginPath();
-        ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
-        ctx.arc(c.x + 20, c.y - 10, c.radius * 0.7, 0, Math.PI * 2);
-        ctx.arc(c.x + 40, c.y, c.radius * 0.8, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
     });
 
-    ctx.fillStyle = '#27ae60';
-    ctx.fillRect(0, canvas.height - 45, canvas.width, 45);
-    ctx.fillStyle = '#219653';
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height - 45);
-    ctx.quadraticCurveTo(300, canvas.height - 90, 600, canvas.height - 45);
-    ctx.quadraticCurveTo(800, canvas.height - 70, canvas.width, canvas.height - 45);
-    ctx.lineTo(canvas.width, canvas.height);
-    ctx.lineTo(0, canvas.height);
-    ctx.fill();
-
-    // Archer perfectly proportioned and anchored to the ground layer
-    ctx.fillStyle = '#27ae60';
-    ctx.fillRect(bowPos.x - 28, bowPos.y - 85, 30, 85);
-    ctx.fillStyle = '#f1c40f';
-    ctx.fillRect(bowPos.x - 28, bowPos.y - 50, 30, 15);
-
-    // Head and Rastafarian Cap
-    ctx.fillStyle = '#b9770e';
-    ctx.beginPath();
-    ctx.arc(bowPos.x - 13, bowPos.y - 105, 14, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#2c3e50';
-    ctx.fillRect(bowPos.x - 23, bowPos.y - 125, 24, 12);
-    ctx.fillStyle = '#c0392b';
-    ctx.fillRect(bowPos.x - 20, bowPos.y - 131, 16, 8);
-
-    // Legs standing on ground
-    ctx.fillStyle = '#34495e';
-    ctx.fillRect(bowPos.x - 25, bowPos.y, 11, 20);
-    ctx.fillRect(bowPos.x - 10, bowPos.y, 11, 20);
-
-    obstacles.forEach(o => o.draw());
-    targets.forEach(t => t.draw());
-
-    if (isAiming) {
-        ctx.strokeStyle = '#f1c40f';
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([5, 5]);
+    orangeTeam.forEach(p => {
+        ctx.fillStyle = '#e67e22';
         ctx.beginPath();
-        ctx.moveTo(bowPos.x, bowPos.y);
-        const pullX = bowPos.x + (bowPos.x - dragEnd.x);
-        const pullY = bowPos.y + (bowPos.y - dragEnd.y);
-        ctx.lineTo(pullX, pullY);
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    });
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#222222';
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (isDragging) {
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ball.x, ball.y);
+        const pullX = dragCurrent.x - dragStart.x;
+        const pullY = dragCurrent.y - dragStart.y;
+        ctx.lineTo(ball.x + pullX, ball.y + pullY);
         ctx.stroke();
         ctx.setLineDash([]);
-    }
-
-    // Bow
-    ctx.strokeStyle = '#8E44AD';
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(bowPos.x - 5, bowPos.y - 20, 50, -Math.PI / 2.1, Math.PI / 2.1);
-    ctx.stroke();
-    ctx.strokeStyle = '#f1c40f';
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(bowPos.x - 5, bowPos.y - 20, 16, -0.4, 0.4);
-    ctx.stroke();
-
-    if (activeArrow && activeArrow.active) {
-        ctx.save();
-        ctx.translate(activeArrow.x, activeArrow.y);
-        ctx.rotate(activeArrow.angle);
-        
-        ctx.fillStyle = '#d35400';
-        ctx.fillRect(-18, -2, 36, 4);
-        
-        ctx.fillStyle = '#bdc3c7';
-        ctx.beginPath();
-        ctx.moveTo(18, -5);
-        ctx.lineTo(26, 0);
-        ctx.lineTo(18, 5);
-        ctx.fill();
-
-        ctx.fillStyle = '#f1c40f';
-        ctx.fillRect(-18, -6, 8, 3);
-        ctx.fillStyle = '#27ae60';
-        ctx.fillRect(-18, 3, 8, 3);
-
-        ctx.restore();
-    }
-
-    if (gameState === 'levelclear') {
-        ctx.fillStyle = 'rgba(0,0,0,0.85)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = '#2ecc71';
-        ctx.font = 'bold 32px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText(`Level ${level} Irie! Clear!`, canvas.width / 2, canvas.height / 2 - 30);
-        
-        ctx.fillStyle = '#fff';
-        ctx.font = '16px system-ui';
-        ctx.fillText(`Score: ${levelScore} / Target: ${requiredScore}`, canvas.width / 2, canvas.height / 2 + 10);
-        
-        ctx.fillStyle = '#27ae60';
-        ctx.fillRect(canvas.width / 2 - 90, canvas.height / 2 + 40, 180, 42);
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 16px system-ui';
-        ctx.fillText('Next Level ➔', canvas.width / 2, canvas.height / 2 + 67);
-        ctx.textAlign = 'left';
-    } else if (gameState === 'gameover') {
-        ctx.fillStyle = 'rgba(0,0,0,0.85)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = '#e74c3c';
-        ctx.font = 'bold 34px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText('Out of Arrows, Bredrin!', canvas.width / 2, canvas.height / 2 - 20);
-        
-        ctx.fillStyle = '#fff';
-        ctx.font = '16px system-ui';
-        ctx.fillText(`You needed ${requiredScore} points. Total Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
-        
-        ctx.font = '13px system-ui';
-        ctx.fillStyle = '#aaa';
-        ctx.fillText('Click Restart Campaign to try again', canvas.width / 2, canvas.height / 2 + 60);
-        ctx.textAlign = 'left';
-    } else if (gameState === 'victory') {
-        ctx.fillStyle = 'rgba(0,0,0,0.9)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 46px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText('👑 🏆 👑', canvas.width / 2, canvas.height / 2 - 75);
-
-        ctx.fillStyle = '#27ae60';
-        ctx.font = 'bold 28px system-ui';
-        ctx.fillText('IRIE LEGEND & CHAMPION ARCHER!', canvas.width / 2, canvas.height / 2 - 20);
-
-        ctx.fillStyle = '#fff';
-        ctx.font = '16px system-ui';
-        ctx.fillText(`All 10 Levels Conquered! Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 25);
-
-        ctx.fillStyle = '#f1c40f';
-        ctx.font = '14px system-ui';
-        ctx.fillText('The Grand Crown and Gold Trophy are yours!', canvas.width / 2, canvas.height / 2 + 60);
-        ctx.textAlign = 'left';
     }
 }
 
 function loop() {
-    update();
+    updatePhysics();
     draw();
     requestAnimationFrame(loop);
 }
 
-setupLevel();
+initFormations();
 loop();
 </script>
+
 </body>
 </html>
+
