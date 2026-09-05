@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Free Flick Football — Online Ready</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #1a1a1a; 
+            color: #fff; 
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #222;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            border: 2px solid #444;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 864px;
+            margin-bottom: 8px;
+            padding: 0 10px;
+        }
+        .team-info {
+            font-weight: bold;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        .scoreboard {
+            font-size: 26px;
+            font-family: monospace;
+            background: #111;
+            padding: 4px 16px;
+            border-radius: 6px;
+            color: #ffa519;
+            letter-spacing: 2px;
+            border: 1px solid #333;
+        }
+        canvas {
+            background: #2e8b57; 
+            border-radius: 6px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+            cursor: crosshair;
+            display: block;
+            border: 2px solid #555;
+        }
+        .footer-controls {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        button {
+            padding: 6px 14px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #444; }
+        .login-btn { background: #4285F4; border-color: #2b67cb; }
+        .login-btn:hover { background: #3367d6; }
+        .instructions {
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 6px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="header">
+        <div class="team-info" id="p1-label" style="color: #f1c40f;">💛 Yellow Team</div>
+        <div class="scoreboard" id="scoreboard">0 - 0</div>
+        <div class="team-info" id="p2-label" style="color: #e67e22;">🧡 Orange Team</div>
+    </div>
+
+    <canvas id="field" width="864" height="444"></canvas>
+
+    <div class="footer-controls">
+        <button onclick="resetGame()">New Match</button>
+        <button onclick="toggleAIMode()" id="ai-mode-btn">Mode: vs AI (Off)</button>
+        <button onclick="initAudio()" id="audio-btn">🔊 Enable Audio</button>
+        <button class="login-btn" onclick="mockLogin()" id="login-btn">👤 Sign In</button>
+    </div>
+    <div class="instructions" id="instruction-text">Click & drag the ball to enter **Slow-Mo** aim mode, release to kick!</div>
+</div>
+
+<script>
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d');
+
+let scoreYellow = 0;
+let scoreOrange = 0;
+let isAIEnabled = false;
+let currentTurn = 'yellow';
+
+let isDragging = false;
+let dragStart = { x: 0, y: 0 };
+let dragCurrent = { x: 0, y: 0 };
+
+const FIELD_WIDTH = 864;
+const FIELD_HEIGHT = 444;
+const GOAL_WIDTH = 110;
+
+let ball = { x: FIELD_WIDTH / 2, y: FIELD_HEIGHT / 2, vx: 0, vy: 0, radius: 10, mass: 1 };
+let yellowTeam = [];
+let orangeTeam = [];
+
+let audioCtx = null;
+let musicInterval = null;
+let audioEnabled = false;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    audioEnabled = true;
+    document.getElementById('audio-btn').innerText = '🎵 Audio Active';
+    startThemeMusic();
+}
+
+function playKickSound() {
+    if (!audioEnabled || !audioCtx) return;
+    let osc = audioCtx.createOscillator();
+    let gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.15);
+    
+    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.15);
+}
+
+// Enhanced Arcade Theme Song (Upbeat Synth Arpeggio Loop)
+function startThemeMusic() {
+    if (musicInterval) return;
+    // Catchy sports-arcade progression sequence
+    const melody = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63, 440.00, 493.88];
+    let index = 0;
+    
+    musicInterval = setInterval(() => {
+        if (!audioEnabled || !audioCtx) return;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        
+        osc.type = 'square'; // Classic retro synth wave
+        osc.frequency.setValueAtTime(melody[index % melody.length], audioCtx.currentTime);
+        
+        gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.18);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.18);
+        index++;
+    }, 220); // Faster tempo for excitement
+}
+
+function mockLogin() {
+    let playerName = prompt("Enter your online username:", "Player1");
+    if (playerName) {
+        document.getElementById('p1-label').innerText = `👤 ${playerName}`;
+        document.getElementById('login-btn').innerText = `✅ Connected`;
+    }
+}
+
+function initFormations() {
+    yellowTeam = [
+        { x: 50,  y: FIELD_HEIGHT / 2, radius: 13, mass: 500 }, 
+        { x: 120, y: 130, radius: 13, mass: 500 }, 
+        { x: 120, y: 200, radius: 13, mass: 500 },
+        { x: 120, y: 244, radius: 13, mass: 500 },
+        { x: 120, y: 314, radius: 13, mass: 500 },
+        { x: 220, y: 150, radius: 13, mass: 500 }, 
+        { x: 220, y: 222, radius: 13, mass: 500 },
+        { x: 220, y: 294, radius: 13, mass: 500 },
+        { x: 340, y: 180, radius: 13, mass: 500 }, 
+        { x: 340, y: 222, radius: 13, mass: 500 },
+        { x: 340, y: 264, radius: 13, mass: 500 }
+    ];
+
+    orangeTeam = [
+        { x: FIELD_WIDTH - 50,  y: FIELD_HEIGHT / 2, radius: 13, mass: 500 }, 
+        { x: FIELD_WIDTH - 120, y: 130, radius: 13, mass: 500 }, 
+        { x: FIELD_WIDTH - 120, y: 200, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 120, y: 244, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 120, y: 314, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 220, y: 150, radius: 13, mass: 500 }, 
+        { x: FIELD_WIDTH - 220, y: 222, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 220, y: 294, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 340, y: 180, radius: 13, mass: 500 }, 
+        { x: FIELD_WIDTH - 340, y: 222, radius: 13, mass: 500 },
+        { x: FIELD_WIDTH - 340, y: 264, radius: 13, mass: 500 }
+    ];
+
+    ball.x = FIELD_WIDTH / 2;
+    ball.y = FIELD_HEIGHT / 2;
+    ball.vx = 0;
+    ball.vy = 0;
+    currentTurn = 'yellow';
+}
+
+function resetGame() {
+    scoreYellow = 0;
+    scoreOrange = 0;
+    updateScoreboard();
+    initFormations();
+}
+
+function updateScoreboard() {
+    document.getElementById('scoreboard').innerText = `${scoreYellow} - ${scoreOrange}`;
+}
+
+function toggleAIMode() {
+    isAIEnabled = !isAIEnabled;
+    document.getElementById('ai-mode-btn').innerText = `Mode: vs AI (${isAIEnabled ? 'On' : 'Off'})`;
+    document.getElementById('p2-label').innerText = isAIEnabled ? '🤖 AI Bot' : '🧡 Orange Team';
+    resetGame();
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if (isAIEnabled && currentTurn === 'orange') return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    if (Math.hypot(mouseX - ball.x, mouseY - ball.y) < ball.radius * 2.5) {
+        isDragging = true;
+        dragStart = { x: ball.x, y: ball.y };
+        dragCurrent = { x: mouseX, y: mouseY };
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const rect = canvas.getBoundingClientRect();
+    dragCurrent.x = e.clientX - rect.left;
+    dragCurrent.y = e.clientY - rect.top;
+});
+
+canvas.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+
+    const powerMultiplier = 0.22;
+    ball.vx = (dragStart.x - dragCurrent.x) * powerMultiplier;
+    ball.vy = (dragStart.y - dragCurrent.y) * powerMultiplier;
+    
+    playKickSound();
+
+    if (isAIEnabled) {
+        currentTurn = 'orange';
+    }
+});
+
+function updatePhysics() {
+    let slowFactor = isDragging ? 0.2 : 1.0;
+    const friction = Math.pow(0.985, slowFactor);
+
+    ball.x += ball.vx * slowFactor;
+    ball.y += ball.vy * slowFactor;
+    ball.vx *= friction;
+    ball.vy *= friction;
+
+    if (Math.abs(ball.vx) < 0.04) ball.vx = 0;
+    if (Math.abs(ball.vy) < 0.04) ball.vy = 0;
+
+    const wallMargin = 20;
+    const goalTop = (FIELD_HEIGHT - GOAL_WIDTH) / 2;
+    const goalBottom = goalTop + GOAL_WIDTH;
+
+    if (ball.y - ball.radius < wallMargin) {
+        ball.y = wallMargin + ball.radius;
+        ball.vy *= -0.8;
+    }
+    if (ball.y + ball.radius > FIELD_HEIGHT - wallMargin) {
+        ball.y = FIELD_HEIGHT - wallMargin - ball.radius;
+        ball.vy *= -0.8;
+    }
+
+    if (ball.x - ball.radius < 0) {
+        if (ball.y > goalTop && ball.y < goalBottom) {
+            scoreOrange++;
+            updateScoreboard();
+            initFormations();
+            return;
+        }
+        ball.x = ball.radius;
+        ball.vx *= -0.8;
+    }
+    if (ball.x + ball.radius > FIELD_WIDTH) {
+        if (ball.y > goalTop && ball.y < goalBottom) {
+            scoreYellow++;
+            updateScoreboard();
+            initFormations();
+            return;
+        }
+        ball.x = FIELD_WIDTH - ball.radius;
+        ball.vx *= -0.8;
+    }
+
+    const allPlayers = [...yellowTeam, ...orangeTeam];
+    allPlayers.forEach(p => {
+        const dx = ball.x - p.x;
+        const dy = ball.y - p.y;
+        const dist = Math.hypot(dx, dy);
+        const minDist = ball.radius + p.radius;
+
+        if (dist < minDist) {
+            const angle = Math.atan2(dy, dx);
+            const overlap = minDist - dist;
+            ball.x += overlap * Math.cos(angle);
+            ball.y += overlap * Math.sin(angle);
+
+            const normalX = Math.cos(angle);
+            const normalY = Math.sin(angle);
+            const dotProduct = ball.vx * normalX + ball.vy * normalY;
+            
+            ball.vx = (ball.vx - 2 * dotProduct * normalX) * 0.8;
+            ball.vy = (ball.vy - 2 * dotProduct * normalY) * 0.8;
+        }
+    });
+
+    // Single Straight Shot AI Logic
+    if (isAIEnabled && currentTurn === 'orange' && ball.vx === 0 && ball.vy === 0) {
+        setTimeout(() => {
+            const targetX = 0;
+            const targetY = FIELD_HEIGHT / 2;
+            const angle = Math.atan2(targetY - ball.y, targetX - ball.x);
+            const power = 14;
+
+            ball.vx = Math.cos(angle) * power;
+            ball.vy = Math.sin(angle) * power;
+            playKickSound();
+            currentTurn = 'yellow';
+        }, 500);
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+
+    ctx.fillStyle = isDragging ? '#257347' : '#2e8b57';
+    ctx.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+    for (let x = 0; x < FIELD_WIDTH; x += 80) {
+        ctx.fillRect(x, 0, 40, FIELD_HEIGHT);
+    }
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(FIELD_WIDTH / 2, 20);
+    ctx.lineTo(FIELD_WIDTH / 2, FIELD_HEIGHT - 20);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(FIELD_WIDTH / 2, FIELD_HEIGHT / 2, 65, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const goalTop = (FIELD_HEIGHT - GOAL_WIDTH) / 2;
+    ctx.fillStyle = 'rgba(20, 30, 20, 0.4)';
+    ctx.fillRect(0, goalTop, 20, GOAL_WIDTH);
+    ctx.fillRect(FIELD_WIDTH - 20, goalTop, 20, GOAL_WIDTH);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    for (let y = goalTop; y < goalTop + GOAL_WIDTH; y += 10) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(20, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(FIELD_WIDTH - 20, y); ctx.lineTo(FIELD_WIDTH, y); ctx.stroke();
+    }
+    for (let x = 0; x <= 20; x += 10) {
+        ctx.beginPath(); ctx.moveTo(x, goalTop); ctx.lineTo(x, goalTop + GOAL_WIDTH); ctx.stroke();
+    }
+    for (let x = FIELD_WIDTH - 20; x <= FIELD_WIDTH; x += 10) {
+        ctx.beginPath(); ctx.moveTo(x, goalTop); ctx.lineTo(x, goalTop + GOAL_WIDTH); ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(0, goalTop, 20, GOAL_WIDTH);
+    ctx.strokeRect(FIELD_WIDTH - 20, goalTop, 20, GOAL_WIDTH);
+
+    yellowTeam.forEach(p => {
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    });
+
+    orangeTeam.forEach(p => {
+        ctx.fillStyle = '#e67e22';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    });
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#222222';
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (isDragging) {
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ball.x, ball.y);
+        const pullX = dragCurrent.x - dragStart.x;
+        const pullY = dragCurrent.y - dragStart.y;
+        ctx.lineTo(ball.x + pullX, ball.y + pullY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+}
+
+function loop() {
+    updatePhysics();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+initFormations();
+loop();
+</script>
+
+</body>
+</html>
