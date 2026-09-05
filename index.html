@@ -154,6 +154,21 @@
     </div>
 
 <script>
+// Authentication check function placed globally first
+function verifyAccess() {
+    const keyInput = document.getElementById('access-key').value;
+    const validInvestorKey = "INVESTOR_2026";
+
+    if (keyInput === validInvestorKey) {
+        document.getElementById('auth-portal').style.display = 'none';
+        document.getElementById('game-wrapper').style.display = 'flex';
+        initFormations();
+        loop();
+    } else {
+        document.getElementById('error-msg').innerText = "Invalid access key. Please verify your credentials.";
+    }
+}
+
 const canvas = document.getElementById('field');
 const ctx = canvas.getContext('2d');
 
@@ -177,20 +192,6 @@ let orangeTeam = [];
 let audioCtx = null;
 let musicInterval = null;
 let audioEnabled = false;
-
-function verifyAccess() {
-    const keyInput = document.getElementById('access-key').value;
-    const validInvestorKey = "INVESTOR_2026";
-
-    if (keyInput === validInvestorKey) {
-        document.getElementById('auth-portal').style.display = 'none';
-        document.getElementById('game-wrapper').style.display = 'flex';
-        initFormations();
-        loop();
-    } else {
-        document.getElementById('error-msg').innerText = "Invalid access key. Please verify your credentials.";
-    }
-}
 
 function initAudio() {
     if (!audioCtx) {
@@ -493,4 +494,29 @@ function draw() {
 
     ctx.fillStyle = '#222222';
     ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.radius * 0.
+    ctx.arc(ball.x, ball.y, ball.radius * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (isDragging) {
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ball.x, ball.y);
+        const pullX = dragCurrent.x - dragStart.x;
+        const pullY = dragCurrent.y - dragStart.y;
+        ctx.lineTo(ball.x + pullX, ball.y + pullY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+}
+
+function loop() {
+    updatePhysics();
+    draw();
+    requestAnimationFrame(loop);
+}
+</script>
+
+</body>
+</html>
