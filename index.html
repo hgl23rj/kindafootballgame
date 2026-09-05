@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arcade Bow and Arrow</title>
+    <title>Arcade Bow and Arrow with Wind</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -33,16 +33,25 @@
             width: 800px;
             margin-bottom: 10px;
             padding: 0 10px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: bold;
         }
         .score-board {
             background: #111;
-            padding: 6px 16px;
+            padding: 6px 14px;
             border-radius: 6px;
             color: #ffa519;
             font-family: monospace;
-            font-size: 20px;
+            font-size: 18px;
+            border: 1px solid #333;
+        }
+        .wind-display {
+            background: #111;
+            padding: 6px 14px;
+            border-radius: 6px;
+            color: #3498db;
+            font-family: monospace;
+            font-size: 15px;
             border: 1px solid #333;
         }
         canvas {
@@ -80,13 +89,14 @@
     <div id="game-container">
         <div class="header">
             <div>🎯 ARCHERY ARCADE</div>
+            <div class="wind-display" id="wind-display">Wind: ➖ Calm</div>
             <div class="score-board" id="score-display">Score: 0 | Arrows: 10</div>
         </div>
         <canvas id="gameCanvas" width="800" height="450"></canvas>
         <div class="footer-controls">
             <button onclick="resetGame()">New Game</button>
         </div>
-        <div class="instructions">Click and drag backward from the bow to aim and set power, release to shoot!</div>
+        <div class="instructions">Watch the wind indicator! Pull back and release to account for drift.</div>
     </div>
 
 <script>
@@ -96,12 +106,13 @@ const ctx = canvas.getContext('2d');
 let score = 0;
 let arrowsLeft = 10;
 let gameState = 'playing'; // 'playing', 'gameover'
+let wind = 0; // Negative = Left wind, Positive = Right wind
 
 const bowPos = { x: 100, y: 225 };
 let isAiming = false;
 let dragEnd = { x: 100, y: 225 };
 
-let activeArrow = null; // flying arrow
+let activeArrow = null;
 let targets = [];
 
 class Target {
@@ -119,7 +130,6 @@ class Target {
         }
     }
     draw() {
-        // Draw concentric target circles
         const rings = ['#e74c3c', '#fff', '#e74c3c', '#3498db', '#f1c40f'];
         const rStep = this.radius / rings.length;
         for (let i = 0; i < rings.length; i++) {
@@ -140,20 +150,38 @@ function initTargets() {
     targets[1].speed = 2.5;
 }
 
+function randomizeWind() {
+    // Wind force value between -0.4 and 0.4
+    wind = (Math.random() - 0.5) * 0.8;
+    updateUI();
+}
+
 function resetGame() {
     score = 0;
     arrowsLeft = 10;
     gameState = 'playing';
     activeArrow = null;
     initTargets();
-    updateUI();
+    randomizeWind();
 }
 
 function updateUI() {
     document.getElementById('score-display').innerText = `Score: ${score} | Arrows: ${arrowsLeft}`;
+    
+    const windDisplay = document.getElementById('wind-display');
+    if (Math.abs(wind) < 0.1) {
+        windDisplay.innerText = "Wind: ➖ Calm";
+        windDisplay.style.color = "#2ecc71";
+    } else if (wind > 0) {
+        windDisplay.innerText = `Wind: ➡️ Right (${(Math.abs(wind)*5).toFixed(1)})`;
+        windDisplay.style.color = "#3498db";
+    } else {
+        windDisplay.innerText = `Wind: ⬅️ Left (${(Math.abs(wind)*5).toFixed(1)})`;
+        windDisplay.style.color = "#e74c3c";
+    }
 }
 
-// Mouse Controls for Pulling the Bow
+// Mouse Controls
 canvas.addEventListener('mousedown', (e) => {
     if (gameState !== 'playing' || activeArrow !== null) return;
     if (arrowsLeft <= 0) return;
@@ -162,7 +190,6 @@ canvas.addEventListener('mousedown', (e) => {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // Check if click is close to the bow
     if (Math.hypot(mouseX - bowPos.x, mouseY - bowPos.y) < 60) {
         isAiming = true;
         dragEnd = { x: mouseX, y: mouseY };
@@ -180,7 +207,6 @@ canvas.addEventListener('mouseup', () => {
     if (!isAiming) return;
     isAiming = false;
 
-    // Calculate vector from drag
     const dx = bowPos.x - dragEnd.x;
     const dy = bowPos.y - dragEnd.y;
     const power = Math.min(Math.hypot(dx, dy) * 0.15, 22);
@@ -204,27 +230,29 @@ function update() {
     targets.forEach(t => t.update());
 
     if (activeArrow && activeArrow.active) {
+        // Apply wind force to horizontal velocity each frame
+        activeArrow.vx += wind * 0.05;
+
         activeArrow.x += activeArrow.vx;
         activeArrow.y += activeArrow.vy;
-        activeArrow.vy += 0.15; // Gravity pull on arrow
+        activeArrow.vy += 0.15; // Gravity
         activeArrow.angle = Math.atan2(activeArrow.vy, activeArrow.vx);
 
-        // Check bounds
         if (activeArrow.x > canvas.width || activeArrow.x < 0 || activeArrow.y > canvas.height || activeArrow.y < 0) {
             activeArrow = null;
+            randomizeWind(); // Change wind for the next shot
             checkGameOver();
         } else {
-            // Check target collision
             targets.forEach(t => {
                 const dist = Math.hypot(activeArrow.x - t.x, activeArrow.y - t.y);
                 if (dist < t.radius) {
-                    // Calculate score based on distance from center
                     let hitScore = 10;
                     if (dist < 8) hitScore = 50; // Bullseye!
                     else if (dist < 20) hitScore = 25;
 
                     score += hitScore;
                     activeArrow = null;
+                    randomizeWind(); // Change wind for the next shot
                     updateUI();
                     checkGameOver();
                 }
@@ -242,14 +270,11 @@ function checkGameOver() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw background ground/horizon
     ctx.fillStyle = '#27ae60';
     ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
 
-    // Draw targets
     targets.forEach(t => t.draw());
 
-    // Draw Bow string / Aiming line
     if (isAiming) {
         ctx.strokeStyle = '#ff00ff';
         ctx.lineWidth = 2;
@@ -263,21 +288,18 @@ function draw() {
         ctx.setLineDash([]);
     }
 
-    // Draw Bow frame
     ctx.strokeStyle = '#d35400';
     ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.arc(bowPos.x, bowPos.y, 40, -Math.PI / 2, Math.PI / 2);
     ctx.stroke();
 
-    // Draw flying arrow
     if (activeArrow && activeArrow.active) {
         ctx.save();
         ctx.translate(activeArrow.x, activeArrow.y);
         ctx.rotate(activeArrow.angle);
         ctx.fillStyle = '#fff';
         ctx.fillRect(-15, -2, 30, 4);
-        // Arrow head
         ctx.fillStyle = '#e74c3c';
         ctx.beginPath();
         ctx.moveTo(15, -4);
@@ -287,7 +309,6 @@ function draw() {
         ctx.restore();
     }
 
-    // Game Over Overlay
     if (gameState === 'gameover') {
         ctx.fillStyle = 'rgba(0,0,0,0.8)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -314,7 +335,7 @@ function loop() {
     requestAnimationFrame(loop);
 }
 
-initTargets();
+resetGame();
 loop();
 </script>
 </body>
