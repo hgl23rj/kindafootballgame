@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arcade Bow and Arrow with Wind</title>
+    <title>Arcade Bow and Arrow - Pro Edition</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -33,25 +33,15 @@
             width: 800px;
             margin-bottom: 10px;
             padding: 0 10px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
         }
-        .score-board {
+        .hud-item {
             background: #111;
-            padding: 6px 14px;
+            padding: 6px 12px;
             border-radius: 6px;
-            color: #ffa519;
             font-family: monospace;
-            font-size: 18px;
-            border: 1px solid #333;
-        }
-        .wind-display {
-            background: #111;
-            padding: 6px 14px;
-            border-radius: 6px;
-            color: #3498db;
-            font-family: monospace;
-            font-size: 15px;
+            font-size: 14px;
             border: 1px solid #333;
         }
         canvas {
@@ -88,15 +78,17 @@
 <body>
     <div id="game-container">
         <div class="header">
-            <div>🎯 ARCHERY ARCADE</div>
-            <div class="wind-display" id="wind-display">Wind: ➖ Calm</div>
-            <div class="score-board" id="score-display">Score: 0 | Arrows: 10</div>
+            <div>🎯 ARCHERY PRO</div>
+            <div class="hud-item" id="level-display" style="color: #ffa519;">Level: 1 / 10</div>
+            <div class="hud-item" id="wind-display" style="color: #3498db;">Wind: ➖ Calm</div>
+            <div class="hud-item" id="highscore-display" style="color: #f1c40f;">Best: 0</div>
+            <div class="hud-item" id="score-display" style="color: #2ecc71;">Score: 0 | Arrows: 5</div>
         </div>
         <canvas id="gameCanvas" width="800" height="450"></canvas>
         <div class="footer-controls">
-            <button onclick="resetGame()">New Game</button>
+            <button onclick="resetCampaign()">Restart Campaign</button>
         </div>
-        <div class="instructions">Watch the wind indicator! Pull back and release to account for drift.</div>
+        <div class="instructions">Click anywhere or pull the bow to initialize audio. Clear all 10 levels to claim your crown!</div>
     </div>
 
 <script>
@@ -104,24 +96,102 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 let score = 0;
-let arrowsLeft = 10;
-let gameState = 'playing'; // 'playing', 'gameover'
-let wind = 0; // Negative = Left wind, Positive = Right wind
+let level = 1;
+let arrowsLeft = 5;
+let levelScore = 0;
+let requiredScore = 100;
+let gameState = 'playing'; // 'playing', 'levelclear', 'gameover', 'victory'
+let wind = 0;
+let highScore = localStorage.getItem('archery_highscore') || 0;
 
 const bowPos = { x: 100, y: 225 };
 let isAiming = false;
 let dragEnd = { x: 100, y: 225 };
-
 let activeArrow = null;
+
 let targets = [];
+let obstacles = [];
+
+// Web Audio API Synth Engine
+let audioCtx = null;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function playSound(type) {
+    initAudio();
+    if (!audioCtx) return;
+
+    let osc = audioCtx.createOscillator();
+    let gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    let now = audioCtx.currentTime;
+
+    if (type === 'release') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+    } else if (type === 'hit') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, now); // D5
+        osc.frequency.setValueAtTime(880, now + 0.08); // A5
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+        osc.start(now);
+        osc.stop(now + 0.25);
+    } else if (type === 'boss_hit') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(80, now + 0.2);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    } else if (type === 'win') {
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, idx) => {
+            let o = audioCtx.createOscillator();
+            let g = audioCtx.createGain();
+            o.connect(g);
+            g.connect(audioCtx.destination);
+            o.type = 'triangle';
+            o.frequency.setValueAtTime(freq, now + idx * 0.12);
+            g.gain.setValueAtTime(0.3, now + idx * 0.12);
+            g.gain.linearRampToValueAtTime(0.01, now + idx * 0.12 + 0.2);
+            o.start(now + idx * 0.12);
+            o.stop(now + idx * 0.12 + 0.2);
+        });
+    } else if (type === 'fail') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.linearRampToValueAtTime(80, now + 0.4);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    }
+}
 
 class Target {
-    constructor() {
-        this.x = 700;
-        this.y = Math.random() * 300 + 75;
-        this.radius = 35;
-        this.speed = Math.random() * 2 + 1.5;
-        this.direction = Math.random() < 0.5 ? 1 : -1;
+    constructor(x, y, radius, speed, dir) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.speed = speed;
+        this.direction = dir;
+        this.isBoss = false;
+        this.bossHP = 0;
     }
     update() {
         this.y += this.speed * this.direction;
@@ -130,7 +200,7 @@ class Target {
         }
     }
     draw() {
-        const rings = ['#e74c3c', '#fff', '#e74c3c', '#3498db', '#f1c40f'];
+        const rings = this.isBoss ? ['#8e44ad', '#e74c3c', '#f1c40f', '#fff', '#e74c3c'] : ['#e74c3c', '#fff', '#e74c3c', '#3498db', '#f1c40f'];
         const rStep = this.radius / rings.length;
         for (let i = 0; i < rings.length; i++) {
             ctx.fillStyle = rings[i];
@@ -141,48 +211,104 @@ class Target {
             ctx.lineWidth = 1;
             ctx.stroke();
         }
+        if (this.isBoss) {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`HP: ${this.bossHP}`, this.x, this.y - this.radius - 8);
+            ctx.textAlign = 'left';
+        }
     }
 }
 
-function initTargets() {
-    targets = [new Target(), new Target()];
-    targets[1].x = 740;
-    targets[1].speed = 2.5;
+class Obstacle {
+    constructor(x, y, w, h, speed, dir) {
+        this.x = x;
+        this.y = y;
+        this.width = w;
+        this.height = h;
+        this.speed = speed;
+        this.direction = dir;
+    }
+    update() {
+        this.y += this.speed * this.direction;
+        if (this.y < 50 || this.y + this.height > 400) {
+            this.direction *= -1;
+        }
+    }
+    draw() {
+        ctx.fillStyle = '#e67e22';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.strokeStyle = '#d35400';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+    }
 }
 
-function randomizeWind() {
-    // Wind force value between -0.4 and 0.4
-    wind = (Math.random() - 0.5) * 0.8;
+function setupLevel() {
+    targets = [];
+    obstacles = [];
+    arrowsLeft = 5;
+    levelScore = 0;
+
+    if (level === 1) { requiredScore = 80; wind = 0; targets.push(new Target(700, 225, 35, 1.5, 1)); }
+    else if (level === 2) { requiredScore = 100; wind = 0.15; targets.push(new Target(680, 150, 30, 2, 1)); targets.push(new Target(740, 300, 30, 2, -1)); }
+    else if (level === 3) { requiredScore = 120; wind = -0.25; targets.push(new Target(700, 225, 25, 3, 1)); obstacles.push(new Obstacle(450, 150, 20, 120, 1.5, 1)); }
+    else if (level === 4) { requiredScore = 150; wind = 0.3; targets.push(new Target(650, 120, 30, 2.5, 1)); targets.push(new Target(750, 320, 30, 2.5, -1)); obstacles.push(new Obstacle(500, 100, 20, 200, 2, -1)); }
+    else if (level === 5) { requiredScore = 140; wind = -0.4; targets.push(new Target(700, 225, 22, 3.5, 1)); obstacles.push(new Obstacle(400, 80, 15, 100, 2.5, 1)); obstacles.push(new Obstacle(580, 250, 15, 100, 2.5, -1)); }
+    else if (level === 6) { requiredScore = 180; wind = 0.2; targets.push(new Target(660, 150, 25, 3, 1)); targets.push(new Target(730, 300, 25, 3, -1)); targets.push(new Target(700, 225, 20, 4, 1)); }
+    else if (level === 7) { requiredScore = 200; wind = -0.35; targets.push(new Target(700, 225, 25, 3.5, 1)); obstacles.push(new Obstacle(480, 50, 20, 140, 3, 1)); obstacles.push(new Obstacle(480, 260, 20, 140, 3, -1)); }
+    else if (level === 8) { requiredScore = 220; wind = 0.45; targets.push(new Target(680, 130, 20, 4, 1)); targets.push(new Target(740, 320, 20, 4, -1)); obstacles.push(new Obstacle(520, 120, 15, 160, 3.5, 1)); }
+    else if (level === 9) { requiredScore = 250; wind = -0.3; targets.push(new Target(650, 100, 22, 3.5, 1)); targets.push(new Target(710, 225, 22, 3.5, -1)); targets.push(new Target(770, 350, 22, 3.5, 1)); obstacles.push(new Obstacle(420, 100, 15, 120, 3, 1)); obstacles.push(new Obstacle(580, 200, 15, 120, 3, -1)); }
+    else if (level === 10) {
+        requiredScore = 300;
+        wind = 0.5;
+        let boss = new Target(720, 225, 45, 2.5, 1);
+        boss.isBoss = true;
+        boss.bossHP = 6;
+        targets.push(boss);
+        obstacles.push(new Obstacle(460, 80, 20, 260, 3, 1));
+    }
+
     updateUI();
 }
 
-function resetGame() {
+function resetCampaign() {
     score = 0;
-    arrowsLeft = 10;
+    level = 1;
     gameState = 'playing';
-    activeArrow = null;
-    initTargets();
-    randomizeWind();
+    setupLevel();
+}
+
+function updateHighScore() {
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('archery_highscore', highScore);
+    }
 }
 
 function updateUI() {
-    document.getElementById('score-display').innerText = `Score: ${score} | Arrows: ${arrowsLeft}`;
+    updateHighScore();
+    document.getElementById('level-display').innerText = `Level: ${level} / 10`;
+    document.getElementById('highscore-display').innerText = `Best: ${highScore}`;
+    document.getElementById('score-display').innerText = `Score: ${score} | Target: ${requiredScore} | Arrows: ${arrowsLeft}`;
     
     const windDisplay = document.getElementById('wind-display');
-    if (Math.abs(wind) < 0.1) {
+    if (Math.abs(wind) < 0.08) {
         windDisplay.innerText = "Wind: ➖ Calm";
         windDisplay.style.color = "#2ecc71";
     } else if (wind > 0) {
-        windDisplay.innerText = `Wind: ➡️ Right (${(Math.abs(wind)*5).toFixed(1)})`;
+        windDisplay.innerText = `Wind: ➡️ Right (${(Math.abs(wind)*4).toFixed(1)})`;
         windDisplay.style.color = "#3498db";
     } else {
-        windDisplay.innerText = `Wind: ⬅️ Left (${(Math.abs(wind)*5).toFixed(1)})`;
+        windDisplay.innerText = `Wind: ⬅️ Left (${(Math.abs(wind)*4).toFixed(1)})`;
         windDisplay.style.color = "#e74c3c";
     }
 }
 
 // Mouse Controls
 canvas.addEventListener('mousedown', (e) => {
+    initAudio();
     if (gameState !== 'playing' || activeArrow !== null) return;
     if (arrowsLeft <= 0) return;
 
@@ -222,48 +348,86 @@ canvas.addEventListener('mouseup', () => {
             active: true
         };
         arrowsLeft--;
+        playSound('release');
         updateUI();
     }
 });
 
 function update() {
+    if (gameState !== 'playing') return;
+
     targets.forEach(t => t.update());
+    obstacles.forEach(o => o.update());
 
     if (activeArrow && activeArrow.active) {
-        // Apply wind force to horizontal velocity each frame
-        activeArrow.vx += wind * 0.05;
-
+        activeArrow.vx += wind * 0.04;
         activeArrow.x += activeArrow.vx;
         activeArrow.y += activeArrow.vy;
-        activeArrow.vy += 0.15; // Gravity
+        activeArrow.vy += 0.15;
         activeArrow.angle = Math.atan2(activeArrow.vy, activeArrow.vx);
 
-        if (activeArrow.x > canvas.width || activeArrow.x < 0 || activeArrow.y > canvas.height || activeArrow.y < 0) {
+        obstacles.forEach(o => {
+            if (activeArrow && activeArrow.x > o.x && activeArrow.x < o.x + o.width &&
+                activeArrow.y > o.y && activeArrow.y < o.y + o.height) {
+                activeArrow = null;
+                checkTurnEnd();
+            }
+        });
+
+        if (activeArrow && (activeArrow.x > canvas.width || activeArrow.x < 0 || activeArrow.y > canvas.height || activeArrow.y < 0)) {
             activeArrow = null;
-            randomizeWind(); // Change wind for the next shot
-            checkGameOver();
-        } else {
+            checkTurnEnd();
+        } else if (activeArrow) {
             targets.forEach(t => {
                 const dist = Math.hypot(activeArrow.x - t.x, activeArrow.y - t.y);
                 if (dist < t.radius) {
-                    let hitScore = 10;
-                    if (dist < 8) hitScore = 50; // Bullseye!
-                    else if (dist < 20) hitScore = 25;
+                    if (t.isBoss) {
+                        t.bossHP--;
+                        score += 50;
+                        levelScore += 50;
+                        activeArrow = null;
+                        playSound('boss_hit');
+                        if (t.bossHP <= 0) {
+                            score += 150;
+                            levelScore += 150;
+                            playSound('win');
+                            if (levelScore >= requiredScore) {
+                                gameState = 'victory';
+                            } else {
+                                level++;
+                                gameState = 'levelclear';
+                            }
+                        }
+                    } else {
+                        let hitScore = 20;
+                        if (dist < 8) hitScore = 60;
+                        else if (dist < 18) hitScore = 40;
 
-                    score += hitScore;
-                    activeArrow = null;
-                    randomizeWind(); // Change wind for the next shot
+                        score += hitScore;
+                        levelScore += hitScore;
+                        activeArrow = null;
+                        playSound('hit');
+                    }
                     updateUI();
-                    checkGameOver();
+                    if (gameState === 'playing') checkTurnEnd();
                 }
             });
         }
     }
 }
 
-function checkGameOver() {
-    if (arrowsLeft === 0 && !activeArrow) {
+function checkTurnEnd() {
+    if (levelScore >= requiredScore) {
+        if (level === 10) {
+            gameState = 'victory';
+            playSound('win');
+        } else {
+            gameState = 'levelclear';
+            playSound('win');
+        }
+    } else if (arrowsLeft === 0 && !activeArrow) {
         gameState = 'gameover';
+        playSound('fail');
     }
 }
 
@@ -273,6 +437,7 @@ function draw() {
     ctx.fillStyle = '#27ae60';
     ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
 
+    obstacles.forEach(o => o.draw());
     targets.forEach(t => t.draw());
 
     if (isAiming) {
@@ -309,25 +474,77 @@ function draw() {
         ctx.restore();
     }
 
-    if (gameState === 'gameover') {
-        ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    if (gameState === 'levelclear') {
+        ctx.fillStyle = 'rgba(0,0,0,0.85)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        ctx.fillStyle = '#ffa519';
-        ctx.font = 'bold 32px system-ui';
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = 'bold 30px system-ui';
         ctx.textAlign = 'center';
-        ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 20);
+        ctx.fillText(`Level ${level - 1} Cleared!`, canvas.width / 2, canvas.height / 2 - 30);
         
         ctx.fillStyle = '#fff';
-        ctx.font = '18px system-ui';
-        ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+        ctx.font = '16px system-ui';
+        ctx.fillText(`Score: ${levelScore} / Target: ${requiredScore}`, canvas.width / 2, canvas.height / 2 + 10);
         
-        ctx.font = '14px system-ui';
+        ctx.fillStyle = '#4285F4';
+        ctx.fillRect(canvas.width / 2 - 80, canvas.height / 2 + 40, 160, 40);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 15px system-ui';
+        ctx.fillText('Next Level ➔', canvas.width / 2, canvas.height / 2 + 65);
+        ctx.textAlign = 'left';
+    } else if (gameState === 'gameover') {
+        ctx.fillStyle = 'rgba(0,0,0,0.85)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = 'bold 32px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('Out of Arrows!', canvas.width / 2, canvas.height / 2 - 20);
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px system-ui';
+        ctx.fillText(`You needed ${requiredScore} points. Total Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+        
+        ctx.font = '13px system-ui';
         ctx.fillStyle = '#aaa';
-        ctx.fillText('Click "New Game" to play again', canvas.width / 2, canvas.height / 2 + 60);
+        ctx.fillText('Click Restart Campaign to try again', canvas.width / 2, canvas.height / 2 + 60);
+        ctx.textAlign = 'left';
+    } else if (gameState === 'victory') {
+        ctx.fillStyle = 'rgba(0,0,0,0.9)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = 'bold 42px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('👑 🏆 👑', canvas.width / 2, canvas.height / 2 - 70);
+
+        ctx.fillStyle = '#ffa519';
+        ctx.font = 'bold 28px system-ui';
+        ctx.fillText('CHAMPION OF THE ARCHERY REALM!', canvas.width / 2, canvas.height / 2 - 20);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px system-ui';
+        ctx.fillText(`You conquered all 10 Levels! Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 25);
+
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = '14px system-ui';
+        ctx.fillText('The Grand Crown and Gold Trophy are yours!', canvas.width / 2, canvas.height / 2 + 60);
         ctx.textAlign = 'left';
     }
 }
+
+canvas.addEventListener('click', (e) => {
+    if (gameState === 'levelclear') {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        if (mouseX > canvas.width / 2 - 80 && mouseX < canvas.width / 2 + 80 &&
+            mouseY > canvas.height / 2 + 40 && mouseY < canvas.height / 2 + 80) {
+            setupLevel();
+        }
+    }
+});
 
 function loop() {
     update();
@@ -335,7 +552,7 @@ function loop() {
     requestAnimationFrame(loop);
 }
 
-resetGame();
+setupLevel();
 loop();
 </script>
 </body>
