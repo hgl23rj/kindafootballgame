@@ -88,7 +88,7 @@
         <div class="footer-controls">
             <button onclick="resetCampaign()">Restart Campaign</button>
         </div>
-        <div class="instructions">Pull back the classic bow, account for the wind, and conquer all 10 levels to win the crown!</div>
+        <div class="instructions">Pull back the classic bow from the archer, adjust for the wind, and hit the bullseye across all 10 levels!</div>
     </div>
 
 <script>
@@ -104,16 +104,15 @@ let gameState = 'playing'; // 'playing', 'levelclear', 'gameover', 'victory'
 let wind = 0;
 let highScore = localStorage.getItem('jamaica_archery_highscore') || 0;
 
-const bowPos = { x: 120, y: 250 };
+const bowPos = { x: 130, y: 390 };
 let isAiming = false;
-let dragEnd = { x: 120, y: 250 };
+let dragEnd = { x: 130, y: 390 };
 let activeArrow = null;
 
 let targets = [];
 let obstacles = [];
 let clouds = [];
 
-// Initialize background clouds
 for (let i = 0; i < 5; i++) {
     clouds.push({
         x: Math.random() * canvas.width,
@@ -123,7 +122,6 @@ for (let i = 0; i < 5; i++) {
     });
 }
 
-// Web Audio API Synth Engine
 let audioCtx = null;
 function initAudio() {
     if (!audioCtx) {
@@ -154,8 +152,8 @@ function playSound(type) {
         osc.stop(now + 0.18);
     } else if (type === 'hit') {
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now); // C5
-        osc.frequency.setValueAtTime(783.99, now + 0.08); // G5
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(783.99, now + 0.08);
         gain.gain.setValueAtTime(0.4, now);
         gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
         osc.start(now);
@@ -205,12 +203,11 @@ class Target {
     }
     update() {
         this.y += this.speed * this.direction;
-        if (this.y - this.radius < 50 || this.y + this.radius > 450) {
+        if (this.y - this.radius < 50 || this.y + this.radius > 410) {
             this.direction *= -1;
         }
     }
     draw() {
-        // Jamaican Rasta theme colors for target rings: Gold, Green, Black, Red
         const rings = this.isBoss ? ['#111', '#27ae60', '#f1c40f', '#e74c3c', '#f1c40f'] : ['#e74c3c', '#f1c40f', '#27ae60', '#111', '#f1c40f'];
         const rStep = this.radius / rings.length;
         for (let i = 0; i < rings.length; i++) {
@@ -243,7 +240,7 @@ class Obstacle {
     }
     update() {
         this.y += this.speed * this.direction;
-        if (this.y < 60 || this.y + this.height > 440) {
+        if (this.y < 60 || this.y + this.height > 400) {
             this.direction *= -1;
         }
     }
@@ -262,23 +259,23 @@ function setupLevel() {
     arrowsLeft = 5;
     levelScore = 0;
 
-    if (level === 1) { requiredScore = 80; wind = 0; targets.push(new Target(850, 250, 38, 1.5, 1)); }
-    else if (level === 2) { requiredScore = 100; wind = 0.15; targets.push(new Target(820, 160, 32, 2, 1)); targets.push(new Target(900, 340, 32, 2, -1)); }
-    else if (level === 3) { requiredScore = 120; wind = -0.25; targets.push(new Target(850, 250, 28, 2.5, 1)); obstacles.push(new Obstacle(550, 160, 20, 130, 1.5, 1)); }
-    else if (level === 4) { requiredScore = 150; wind = 0.3; targets.push(new Target(800, 130, 30, 2.5, 1)); targets.push(new Target(920, 370, 30, 2.5, -1)); obstacles.push(new Obstacle(600, 100, 20, 220, 2, -1)); }
-    else if (level === 5) { requiredScore = 140; wind = -0.4; targets.push(new Target(850, 250, 24, 3.5, 1)); obstacles.push(new Obstacle(500, 80, 15, 110, 2.5, 1)); obstacles.push(new Obstacle(700, 280, 15, 110, 2.5, -1)); }
-    else if (level === 6) { requiredScore = 180; wind = 0.2; targets.push(new Target(810, 160, 26, 3, 1)); targets.push(new Target(890, 340, 26, 3, -1)); targets.push(new Target(850, 250, 22, 4, 1)); }
-    else if (level === 7) { requiredScore = 200; wind = -0.35; targets.push(new Target(850, 250, 26, 3.5, 1)); obstacles.push(new Obstacle(580, 50, 20, 150, 3, 1)); obstacles.push(new Obstacle(580, 280, 20, 150, 3, -1)); }
-    else if (level === 8) { requiredScore = 220; wind = 0.45; targets.push(new Target(820, 140, 22, 4, 1)); targets.push(new Target(910, 360, 22, 4, -1)); obstacles.push(new Obstacle(630, 120, 15, 180, 3.5, 1)); }
-    else if (level === 9) { requiredScore = 250; wind = -0.3; targets.push(new Target(790, 110, 24, 3.5, 1)); targets.push(new Target(860, 250, 24, 3.5, -1)); targets.push(new Target(930, 390, 24, 3.5, 1)); obstacles.push(new Obstacle(520, 100, 15, 130, 3, 1)); obstacles.push(new Obstacle(700, 220, 15, 130, 3, -1)); }
+    if (level === 1) { requiredScore = 80; wind = 0; targets.push(new Target(850, 230, 38, 1.5, 1)); }
+    else if (level === 2) { requiredScore = 100; wind = 0.15; targets.push(new Target(820, 150, 32, 2, 1)); targets.push(new Target(900, 310, 32, 2, -1)); }
+    else if (level === 3) { requiredScore = 120; wind = -0.25; targets.push(new Target(850, 230, 28, 2.5, 1)); obstacles.push(new Obstacle(550, 150, 20, 130, 1.5, 1)); }
+    else if (level === 4) { requiredScore = 150; wind = 0.3; targets.push(new Target(800, 120, 30, 2.5, 1)); targets.push(new Target(920, 340, 30, 2.5, -1)); obstacles.push(new Obstacle(600, 100, 20, 200, 2, -1)); }
+    else if (level === 5) { requiredScore = 140; wind = -0.4; targets.push(new Target(850, 230, 24, 3.5, 1)); obstacles.push(new Obstacle(500, 80, 15, 110, 2.5, 1)); obstacles.push(new Obstacle(700, 260, 15, 110, 2.5, -1)); }
+    else if (level === 6) { requiredScore = 180; wind = 0.2; targets.push(new Target(810, 150, 26, 3, 1)); targets.push(new Target(890, 310, 26, 3, -1)); targets.push(new Target(850, 230, 22, 4, 1)); }
+    else if (level === 7) { requiredScore = 200; wind = -0.35; targets.push(new Target(850, 230, 26, 3.5, 1)); obstacles.push(new Obstacle(580, 50, 20, 150, 3, 1)); obstacles.push(new Obstacle(580, 250, 20, 150, 3, -1)); }
+    else if (level === 8) { requiredScore = 220; wind = 0.45; targets.push(new Target(820, 130, 22, 4, 1)); targets.push(new Target(910, 330, 22, 4, -1)); obstacles.push(new Obstacle(630, 110, 15, 180, 3.5, 1)); }
+    else if (level === 9) { requiredScore = 250; wind = -0.3; targets.push(new Target(790, 100, 24, 3.5, 1)); targets.push(new Target(860, 230, 24, 3.5, -1)); targets.push(new Target(930, 360, 24, 3.5, 1)); obstacles.push(new Obstacle(520, 90, 15, 130, 3, 1)); obstacles.push(new Obstacle(700, 200, 15, 130, 3, -1)); }
     else if (level === 10) {
         requiredScore = 300;
         wind = 0.5;
-        let boss = new Target(870, 250, 48, 2.5, 1);
+        let boss = new Target(870, 230, 48, 2.5, 1);
         boss.isBoss = true;
         boss.bossHP = 6;
         targets.push(boss);
-        obstacles.push(new Obstacle(570, 80, 22, 300, 3, 1));
+        obstacles.push(new Obstacle(570, 70, 22, 280, 3, 1));
     }
 
     updateUI();
@@ -320,6 +317,23 @@ function updateUI() {
 // Mouse Controls
 canvas.addEventListener('mousedown', (e) => {
     initAudio();
+    
+    // Handle level clear button click check
+    if (gameState === 'levelclear') {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        // Button bounds: X: [canvas.width/2 - 90, canvas.width/2 + 90], Y: [canvas.height/2 + 40, canvas.height/2 + 82]
+        if (mouseX > canvas.width / 2 - 90 && mouseX < canvas.width / 2 + 90 &&
+            mouseY > canvas.height / 2 + 40 && mouseY < canvas.height / 2 + 82) {
+            level++;
+            gameState = 'playing';
+            setupLevel();
+        }
+        return;
+    }
+
     if (gameState !== 'playing' || activeArrow !== null) return;
     if (arrowsLeft <= 0) return;
 
@@ -365,7 +379,6 @@ canvas.addEventListener('mouseup', () => {
 });
 
 function update() {
-    // Update background clouds
     clouds.forEach(c => {
         c.x -= c.speed;
         if (c.x < -60) c.x = canvas.width + 60;
@@ -411,7 +424,6 @@ function update() {
                             if (levelScore >= requiredScore) {
                                 gameState = 'victory';
                             } else {
-                                level++;
                                 gameState = 'levelclear';
                             }
                         }
@@ -451,7 +463,6 @@ function checkTurnEnd() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw passing clouds
     clouds.forEach(c => {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
         ctx.beginPath();
@@ -461,7 +472,6 @@ function draw() {
         ctx.fill();
     });
 
-    // Draw Ground / Hills
     ctx.fillStyle = '#27ae60';
     ctx.fillRect(0, canvas.height - 45, canvas.width, 45);
     ctx.fillStyle = '#219653';
@@ -473,11 +483,27 @@ function draw() {
     ctx.lineTo(0, canvas.height);
     ctx.fill();
 
-    // Draw obstacles & targets
+    ctx.fillStyle = '#1e8449';
+    ctx.fillRect(bowPos.x - 30, bowPos.y - 45, 26, 45);
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillRect(bowPos.x - 25, bowPos.y - 45, 16, 6);
+
+    ctx.fillStyle = '#b9770e';
+    ctx.beginPath();
+    ctx.arc(bowPos.x - 17, bowPos.y - 58, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(bowPos.x - 26, bowPos.y - 72, 20, 8);
+    ctx.fillStyle = '#c0392b';
+    ctx.fillRect(bowPos.x - 22, bowPos.y - 76, 12, 6);
+
+    ctx.fillStyle = '#5d4037';
+    ctx.fillRect(bowPos.x - 27, bowPos.y, 10, 15);
+    ctx.fillRect(bowPos.x - 15, bowPos.y, 10, 15);
+
     obstacles.forEach(o => o.draw());
     targets.forEach(t => t.draw());
 
-    // Draw Aiming Guide String Line
     if (isAiming) {
         ctx.strokeStyle = '#f1c40f';
         ctx.lineWidth = 2.5;
@@ -491,30 +517,25 @@ function draw() {
         ctx.setLineDash([]);
     }
 
-    // Draw Classic Curved Wooden Bow
-    ctx.strokeStyle = '#8E44AD'; // Purpleheart / rich wood tone
+    ctx.strokeStyle = '#8E44AD';
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.arc(bowPos.x - 5, bowPos.y, 45, -Math.PI / 2.1, Math.PI / 2.1);
     ctx.stroke();
-    // Bow handle accent (Gold)
     ctx.strokeStyle = '#f1c40f';
     ctx.lineWidth = 8;
     ctx.beginPath();
     ctx.arc(bowPos.x - 5, bowPos.y, 15, -0.4, 0.4);
     ctx.stroke();
 
-    // Draw flying arrow with feathered fletchings (Gold, Green, Red - Jamaican colors)
     if (activeArrow && activeArrow.active) {
         ctx.save();
         ctx.translate(activeArrow.x, activeArrow.y);
         ctx.rotate(activeArrow.angle);
         
-        // Wooden shaft
         ctx.fillStyle = '#d35400';
         ctx.fillRect(-18, -2, 36, 4);
         
-        // Steel arrowhead
         ctx.fillStyle = '#bdc3c7';
         ctx.beginPath();
         ctx.moveTo(18, -5);
@@ -522,7 +543,6 @@ function draw() {
         ctx.lineTo(18, 5);
         ctx.fill();
 
-        // Feather fletchings (Gold & Green)
         ctx.fillStyle = '#f1c40f';
         ctx.fillRect(-18, -6, 8, 3);
         ctx.fillStyle = '#27ae60';
@@ -531,7 +551,6 @@ function draw() {
         ctx.restore();
     }
 
-    // Overlays for Game States
     if (gameState === 'levelclear') {
         ctx.fillStyle = 'rgba(0,0,0,0.85)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -539,7 +558,7 @@ function draw() {
         ctx.fillStyle = '#2ecc71';
         ctx.font = 'bold 32px system-ui';
         ctx.textAlign = 'center';
-        ctx.fillText(`Level ${level - 1} Irie! Clear!`, canvas.width / 2, canvas.height / 2 - 30);
+        ctx.fillText(`Level ${level} Irie! Clear!`, canvas.width / 2, canvas.height / 2 - 30);
         
         ctx.fillStyle = '#fff';
         ctx.font = '16px system-ui';
@@ -591,18 +610,6 @@ function draw() {
         ctx.textAlign = 'left';
     }
 }
-
-canvas.addEventListener('click', (e) => {
-    if (gameState === 'levelclear') {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        if (mouseX > canvas.width / 2 - 90 && mouseX < canvas.width / 2 + 90 &&
-            mouseY > canvas.height / 2 + 40 && mouseY < canvas.height / 2 + 82) {
-            setupLevel();
-        }
-    }
-});
 
 function loop() {
     update();
