@@ -104,9 +104,10 @@ let gameState = 'playing'; // 'playing', 'levelclear', 'gameover', 'victory'
 let wind = 0;
 let highScore = localStorage.getItem('jamaica_archery_highscore') || 0;
 
-const bowPos = { x: 130, y: 380 };
+// Archer positioned properly so feet rest on the ground line
+const bowPos = { x: 130, y: 445 };
 let isAiming = false;
-let dragEnd = { x: 130, y: 380 };
+let dragEnd = { x: 130, y: 445 };
 let activeArrow = null;
 
 let targets = [];
@@ -319,7 +320,6 @@ function updateUI() {
 canvas.addEventListener('mousedown', (e) => {
     initAudio();
     
-    // Handle level clear button click check
     if (gameState === 'levelclear') {
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
@@ -483,28 +483,26 @@ function draw() {
     ctx.lineTo(0, canvas.height);
     ctx.fill();
 
-    // Redesigned Archer proportions properly scaled relative to the bow
-    // Torso (Green/Gold/Red rasta shirt bands)
+    // Archer perfectly proportioned and anchored to the ground layer
     ctx.fillStyle = '#27ae60';
-    ctx.fillRect(bowPos.x - 38, bowPos.y - 65, 34, 65);
+    ctx.fillRect(bowPos.x - 28, bowPos.y - 85, 30, 85);
     ctx.fillStyle = '#f1c40f';
-    ctx.fillRect(bowPos.x - 38, bowPos.y - 40, 34, 15);
+    ctx.fillRect(bowPos.x - 28, bowPos.y - 50, 30, 15);
 
-    // Head with dreads/tam hat
+    // Head and Rastafarian Cap
     ctx.fillStyle = '#b9770e';
     ctx.beginPath();
-    ctx.arc(bowPos.x - 21, bowPos.y - 84, 15, 0, Math.PI * 2);
+    ctx.arc(bowPos.x - 13, bowPos.y - 105, 14, 0, Math.PI * 2);
     ctx.fill();
-    // Tam hat / Rastafarian cap
     ctx.fillStyle = '#2c3e50';
-    ctx.fillRect(bowPos.x - 33, bowPos.y - 102, 26, 12);
+    ctx.fillRect(bowPos.x - 23, bowPos.y - 125, 24, 12);
     ctx.fillStyle = '#c0392b';
-    ctx.fillRect(bowPos.x - 29, bowPos.y - 108, 18, 8);
+    ctx.fillRect(bowPos.x - 20, bowPos.y - 131, 16, 8);
 
-    // Legs
+    // Legs standing on ground
     ctx.fillStyle = '#34495e';
-    ctx.fillRect(bowPos.x - 37, bowPos.y, 13, 20);
-    ctx.fillRect(bowPos.x - 18, bowPos.y, 13, 20);
+    ctx.fillRect(bowPos.x - 25, bowPos.y, 11, 20);
+    ctx.fillRect(bowPos.x - 10, bowPos.y, 11, 20);
 
     obstacles.forEach(o => o.draw());
     targets.forEach(t => t.draw());
@@ -526,12 +524,12 @@ function draw() {
     ctx.strokeStyle = '#8E44AD';
     ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.arc(bowPos.x - 5, bowPos.y, 45, -Math.PI / 2.1, Math.PI / 2.1);
+    ctx.arc(bowPos.x - 5, bowPos.y - 20, 50, -Math.PI / 2.1, Math.PI / 2.1);
     ctx.stroke();
     ctx.strokeStyle = '#f1c40f';
     ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.arc(bowPos.x - 5, bowPos.y, 15, -0.4, 0.4);
+    ctx.arc(bowPos.x - 5, bowPos.y - 20, 16, -0.4, 0.4);
     ctx.stroke();
 
     if (activeArrow && activeArrow.active) {
